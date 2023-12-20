@@ -144,8 +144,6 @@ def get_privileged_accounts(access_token, roles, role_data, console):
                         privileged_accounts.append(email)
                     else:
                         console.log(f"No email found for user ID: {member['id']}")
-            # else:
-            # console.log(f"No members found in role: {role_name}")
         # Save role members data
         save_json(all_role_members, ROLEMEMBERS_FILE)
         read_and_pretty_save(all_role_members, PRETTY_ROLEMEMBERS_FILE)
