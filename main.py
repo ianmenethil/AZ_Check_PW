@@ -4,6 +4,9 @@ from pathlib import Path
 
 import httpx
 import pandas as pd
+
+# trunk-ignore(mypy/note)
+# trunk-ignore(mypy/import-untyped)
 import yaml
 from rich.console import Console
 from rich.progress import Progress
@@ -63,7 +66,10 @@ def get_access_token(credentials, console):
         else:
             console.log("[bold red]Failed to retrieve access token. Please check your credentials.")
         return access_token
-    except Exception as err:
+    except httpx.RequestError as err:
+        console.log(f"[bold red]Failed to retrieve access token. Please check your credentials.: {err}")
+        console.print_exception()
+    except httpx.HTTPStatusError as err:
         console.log(f"[bold red]Failed to retrieve access token. Please check your credentials.: {err}")
         console.print_exception()
     return None
@@ -98,6 +104,7 @@ def get_email_address(user_details, console):
     return None
 
 
+# trunk-ignore(pylint/R0914)
 def get_privileged_accounts(access_token, roles, role_data, console):
     """Get privileged accounts from Azure AD based on the provided access token, roles, and role data.
     Args:
@@ -143,12 +150,26 @@ def get_privileged_accounts(access_token, roles, role_data, console):
         save_json(all_role_members, ROLEMEMBERS_FILE)
         read_and_pretty_save(all_role_members, PRETTY_ROLEMEMBERS_FILE)
         return privileged_accounts
+    except httpx.RequestError as err:
+        console.log(f"[bold red]Failed to retrieve access token. Please check your credentials.: {err}")
+        console.print_exception()
+    except httpx.HTTPStatusError as err:
+        console.log(f"[bold red]Failed to retrieve access token. Please check your credentials.: {err}")
+        console.print_exception()
+    # trunk-ignore(pylint/W0718)
     except Exception as e:
         console.log(f"[bold red]An error occurred: {e}")
         console.print_exception()  # Rich formatted traceback
+    return None
 
 
 def get_user_details(access_token, user_email, console):
+    """ Get user details from Microsoft Graph API.
+    Args:
+        access_token (str): Access token for authentication.
+        user_email (str): Email address of the user.
+        console: Console object for logging.
+    Returns: dict: User details in JSON format. """
     headers = {"Authorization": f"Bearer {access_token}"}
     console.log(f"Getting user details for: {user_email}")
     # user_endpoint = f"https://graph.microsoft.com/v1.0/users/{user_email}?$count=true&$select=displayName,mail,userPrincipalName,createdDateTime,usageLocation,userType,externalUserState,externalUserStateChangeDateTime,onPremisesSamAccountName,onPremisesSecurityIdentifier,onPremisesSyncEnabled,onPremisesUserPrincipalName,otherMails,passwordPolicies,onPremisesDistinguishedName,onPremisesDomainName,onPremisesLastSyncDateTime,refreshTokensValidFromDateTime,securityIdentifier,signInSessionsValidFromDateTime,id,passwordProfile,identities,signInActivity,accountEnabled{filters}"
@@ -160,22 +181,26 @@ def get_user_details(access_token, user_email, console):
 
 
 def save_json(data, filename):
+    """Save the given data as a JSON file."""
     file_path = Path(f"{filename}")
     file_content = json.dumps(data, indent=4)
-    file_path.write_text(file_content)
+    file_path.write_text(file_content, encoding="utf-8")
 
 
 def flatten_json(nested_json, exclude=None):
+    """Flatten nested JSON object into a flat dictionary."""
     if exclude is None:
         exclude = [""]
     out = {}
 
     def flatten(x, name="", exclude=exclude):
+        # trunk-ignore(ruff/E721)
         # trunk-ignore(pylint/C0123)
         if type(x) is dict:
             for a in x:
                 if a not in exclude:
                     flatten(x[a], name + a + "_")
+        # trunk-ignore(ruff/E721)
         # trunk-ignore(pylint/C0123)
         elif type(x) is list:
             i = 0
@@ -189,6 +214,7 @@ def flatten_json(nested_json, exclude=None):
 
 
 def read_and_pretty_save(data, output_file_path):
+    """Reads data, flattens it, and saves it to a CSV file."""
     if isinstance(data, str):
         data = json.loads(data)
     flat_data = [flatten_json(item) for item in data]
@@ -197,6 +223,7 @@ def read_and_pretty_save(data, output_file_path):
 
 
 def main():
+    """Entry point of the script."""
     console = Console()
     with console.status("[bold green]Starting the script...[/]", spinner="dots"):
         MEMBERS_DATADATE = (get_file_modification_date(ROLEMEMBERS_FILE)if ROLEMEMBERS_FILE_exist else None)
@@ -230,6 +257,7 @@ def main():
                     save_json(all_data, USERDATA_FILE)
                     read_and_pretty_save(all_data, PRETTY_USERDATA_FILE)
                     console.log("[bold green]Pretty version saved to: ", PRETTY_USERDATA_FILE)
+        # trunk-ignore(pylint/W0718)
         except Exception as e:
             console.log(f"[bold red]An error occurred: {e}")
             console.print_exception()
