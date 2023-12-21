@@ -14,7 +14,6 @@ from rich.traceback import install
 
 OUTPUT_DIR = "output"
 CONFIG_FILE = "credentials.yaml"
-EMAILS_FILE = "emails.yaml"
 ROLES_FILE = "roles.json"
 Path(OUTPUT_DIR).mkdir(parents=True, exist_ok=True)
 
